@@ -1,6 +1,7 @@
 package main
 
 import (
+	"database/sql"
 	"log"
 	"os"
 	"time"
@@ -10,6 +11,7 @@ import (
 	"github.com/joho/godotenv"
 	_ "github.com/lib/pq"
 	"github.com/neWbie-saby/leaderboard/internal/api"
+	"github.com/neWbie-saby/leaderboard/internal/database"
 )
 
 func main() {
@@ -21,19 +23,19 @@ func main() {
 		log.Fatal("PORT not found in the environment")
 	}
 
-	// dbString := os.Getenv("DB_URL")
+	dbString := os.Getenv("DB_URL")
 
-	// if dbString == "" {
-	// 	log.Fatal("DB_URL not found in the environment")
-	// }
+	if dbString == "" {
+		log.Fatal("DB_URL not found in the environment")
+	}
 
-	// conn, err := sql.Open("postgres", dbString)
+	conn, err := sql.Open("postgres", dbString)
 
-	// if err != nil {
-	// 	log.Fatal("Can't connect to database")
-	// }
+	if err != nil {
+		log.Fatal("Can't connect to database")
+	}
 
-	// db := database.New(conn)
+	db := database.New(conn)
 
 	router := fiber.New()
 
@@ -45,9 +47,17 @@ func main() {
 		MaxAge:        int(5 * time.Minute / time.Second),
 	}))
 
+	apiCfg := api.ApiConfig{
+		DB: db,
+	}
+
 	v1 := router.Group("/v1")
 
 	v1.Get("/healthz", api.HandlerReadiness)
+	v1.Get("/err", api.HandlerErr)
+
+	v1.Post("/register", apiCfg.HandlerRegister)
+	v1.Post("/login", apiCfg.HandlerLogin)
 
 	log.Printf("Fiber Server starting on port %v", portString)
 	if err := router.Listen(":" + portString); err != nil {
