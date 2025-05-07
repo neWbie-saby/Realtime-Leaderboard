@@ -12,6 +12,7 @@ import (
 	_ "github.com/lib/pq"
 	"github.com/neWbie-saby/leaderboard/internal/api"
 	"github.com/neWbie-saby/leaderboard/internal/database"
+	"github.com/neWbie-saby/leaderboard/internal/middlewares"
 )
 
 func main() {
@@ -58,6 +59,8 @@ func main() {
 
 	v1.Post("/register", apiCfg.HandlerRegister)
 	v1.Post("/login", apiCfg.HandlerLogin)
+
+	v1.Get("/users/by-username", middlewares.AuthenticateToken, apiCfg.HandlerGetUserByUsername)
 
 	log.Printf("Fiber Server starting on port %v", portString)
 	if err := router.Listen(":" + portString); err != nil {

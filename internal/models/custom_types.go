@@ -25,3 +25,13 @@ type User struct {
 	UserName  string    `json:"username"`
 	Email     string    `json:"email"`
 }
+
+type UserNameInput struct {
+	UserName string `json:"username"`
+}
+
+type UserNameOutput struct {
+	ID       int32  `json:"id"`
+	UserName string `json:"username"`
+	Email    string `json:"email"`
+}

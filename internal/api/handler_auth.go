@@ -13,12 +13,12 @@ func (apiCfg *ApiConfig) HandlerRegister(f *fiber.Ctx) error {
 	var input models.RegisterInput
 
 	if err := f.BodyParser(&input); err != nil {
-		return respondWithError(f, fiber.StatusBadRequest, fmt.Sprintf("Error parsing register JSON: %v", err)) // code - 400
+		return RespondWithError(f, fiber.StatusBadRequest, fmt.Sprintf("Error parsing register JSON: %v", err)) // code - 400
 	}
 
 	hashed, err := utils.HashPassword(input.Password)
 	if err != nil {
-		return respondWithError(f, fiber.StatusInternalServerError, fmt.Sprintf("Password hashing failed: %v", err)) // code - 500
+		return RespondWithError(f, fiber.StatusInternalServerError, fmt.Sprintf("Password hashing failed: %v", err)) // code - 500
 	}
 
 	user, err := apiCfg.DB.CreateUser(f.Context(), database.CreateUserParams{
@@ -27,15 +27,15 @@ func (apiCfg *ApiConfig) HandlerRegister(f *fiber.Ctx) error {
 		PasswordHash: hashed,
 	})
 	if err != nil {
-		return respondWithError(f, fiber.StatusConflict, fmt.Sprintf("Password hashing failed: %v", err)) // code - 409
+		return RespondWithError(f, fiber.StatusConflict, fmt.Sprintf("User creation failed: %v", err)) // code - 409
 	}
 
 	token, err := utils.GenerateJWT(int(user.ID))
 	if err != nil {
-		return respondWithError(f, fiber.StatusInternalServerError, fmt.Sprintf("Token generation failed: %v", err)) // code - 500
+		return RespondWithError(f, fiber.StatusInternalServerError, fmt.Sprintf("Token generation failed: %v", err)) // code - 500
 	}
 
-	return respondWithJSON(f, fiber.StatusOK, fiber.Map{ // code - 200
+	return RespondWithJSON(f, fiber.StatusOK, fiber.Map{ // code - 200
 		"user_details": models.DatabaseUserToUser(user),
 		"token":        token,
 	})
@@ -45,7 +45,7 @@ func (apiCfg *ApiConfig) HandlerLogin(f *fiber.Ctx) error {
 	var input models.LoginInput
 
 	if err := f.BodyParser(&input); err != nil {
-		return respondWithError(f, fiber.StatusBadRequest, fmt.Sprintf("Error parsing register JSON: %v", err)) // code - 400
+		return RespondWithError(f, fiber.StatusBadRequest, fmt.Sprintf("Error parsing register JSON: %v", err)) // code - 400
 	}
 
 	var user database.User
@@ -55,20 +55,20 @@ func (apiCfg *ApiConfig) HandlerLogin(f *fiber.Ctx) error {
 	if err != nil {
 		user, err = apiCfg.DB.GetUserByEmail(f.Context(), input.Identifier)
 		if err != nil {
-			return respondWithError(f, fiber.StatusUnauthorized, fmt.Sprintf("Invalid credentials: %v", err)) // code - 401
+			return RespondWithError(f, fiber.StatusUnauthorized, fmt.Sprintf("Invalid credentials: %v", err)) // code - 401
 		}
 	}
 
 	if err := utils.CheckPasswordHash(input.Password, user.PasswordHash); err != nil {
-		return respondWithError(f, fiber.StatusUnauthorized, fmt.Sprintf("Invalid credentials: %v", err)) // code - 401
+		return RespondWithError(f, fiber.StatusUnauthorized, fmt.Sprintf("Invalid credentials: %v", err)) // code - 401
 	}
 
 	token, err := utils.GenerateJWT(int(user.ID))
 	if err != nil {
-		return respondWithError(f, fiber.StatusInternalServerError, fmt.Sprintf("Token generation failed: %v", err)) // code - 500
+		return RespondWithError(f, fiber.StatusInternalServerError, fmt.Sprintf("Token generation failed: %v", err)) // code - 500
 	}
 
-	return respondWithJSON(f, fiber.StatusOK, fiber.Map{ // code - 200
+	return RespondWithJSON(f, fiber.StatusOK, fiber.Map{ // code - 200
 		"user_details": models.DatabaseUserToUser(user),
 		"token":        token,
 	})

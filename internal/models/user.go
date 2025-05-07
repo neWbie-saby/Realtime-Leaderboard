@@ -25,3 +25,11 @@ func DatabaseUserToUser(dbUser database.User) User {
 		Email:     dbUser.Email,
 	}
 }
+
+func DatabaseUserToUserFetchedByUserName(dbUser database.User) UserNameOutput {
+	return UserNameOutput{
+		ID:       dbUser.ID,
+		UserName: dbUser.Username,
+		Email:    dbUser.Email,
+	}
+}
