@@ -60,7 +60,7 @@ func main() {
 	v1.Post("/register", apiCfg.HandlerRegister)
 	v1.Post("/login", apiCfg.HandlerLogin)
 
-	v1.Get("/users/by-username", middlewares.AuthenticateToken, apiCfg.HandlerGetUserByUsername)
+	v1.Get("/users/:username", middlewares.AuthenticateToken, apiCfg.HandlerGetUserByUsername)
 
 	log.Printf("Fiber Server starting on port %v", portString)
 	if err := router.Listen(":" + portString); err != nil {

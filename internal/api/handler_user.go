@@ -9,18 +9,14 @@ import (
 )
 
 func (apiCfg *ApiConfig) HandlerGetUserByUsername(f *fiber.Ctx) error {
-	var input models.UserNameInput
+	username := f.Params("username")
 
-	if err := f.BodyParser(&input); err != nil {
-		return RespondWithError(f, fiber.StatusBadRequest, fmt.Sprintf("Error parsing register JSON: %v", err)) // code - 400
-	}
-
-	user, err := apiCfg.DB.GetUserByUserName(f.Context(), input.UserName)
+	user, err := apiCfg.DB.GetUserByUserName(f.Context(), username)
 	if err != nil {
 		if strings.Contains(err.Error(), "no rows in result") {
-			return RespondWithError(f, fiber.StatusNotFound, fmt.Sprintf("User not found with username: %v", input.UserName)) // code - 404
+			return RespondWithError(f, fiber.StatusNotFound, fmt.Sprintf("User not found with username: %v", username)) // code - 404
 		}
-		return RespondWithError(f, fiber.StatusInternalServerError, fmt.Sprintf("Failed to get user of username %v: %v", input.UserName, err)) // code - 500
+		return RespondWithError(f, fiber.StatusInternalServerError, fmt.Sprintf("Failed to get user of username %v: %v", username, err)) // code - 500
 	}
 
 	return RespondWithJSON(f, fiber.StatusOK, fiber.Map{ // code - 200
