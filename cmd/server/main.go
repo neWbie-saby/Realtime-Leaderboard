@@ -4,10 +4,8 @@ import (
 	"database/sql"
 	"log"
 	"os"
-	"time"
 
 	"github.com/gofiber/fiber/v2"
-	"github.com/gofiber/fiber/v2/middleware/cors"
 	"github.com/joho/godotenv"
 	_ "github.com/lib/pq"
 	"github.com/neWbie-saby/leaderboard/internal/api"
@@ -38,15 +36,13 @@ func main() {
 
 	db := database.New(conn)
 
-	router := fiber.New()
+	router := fiber.New(fiber.Config{
+		ErrorHandler: middlewares.ErrorHandler,
+	})
 
-	router.Use(cors.New(cors.Config{
-		AllowOrigins:  "*",
-		AllowMethods:  "GET,POST,PUT,DELETE,OPTIONS",
-		AllowHeaders:  "*",
-		ExposeHeaders: "Link",
-		MaxAge:        int(5 * time.Minute / time.Second),
-	}))
+	router.Use(middlewares.CORS())
+	// router.Use(middlewares.RateLimiter())
+	router.Use(middlewares.Logger)
 
 	apiCfg := api.ApiConfig{
 		DB: db,
@@ -61,6 +57,9 @@ func main() {
 	v1.Post("/login", apiCfg.HandlerLogin)
 
 	v1.Get("/users/:username", middlewares.AuthenticateToken, apiCfg.HandlerGetUserByUsername)
+
+	v1.Post("/matches", middlewares.AuthenticateToken, apiCfg.HandlerCreateMatch)
+	v1.Post("/matches/:match_id/scores", middlewares.AuthenticateToken, apiCfg.HandlerPushMatchScores)
 
 	log.Printf("Fiber Server starting on port %v", portString)
 	if err := router.Listen(":" + portString); err != nil {

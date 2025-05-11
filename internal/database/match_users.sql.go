@@ -24,3 +24,38 @@ func (q *Queries) AddUserToMatch(ctx context.Context, arg AddUserToMatchParams) 
 	_, err := q.db.ExecContext(ctx, addUserToMatch, arg.MatchID, arg.UserID, arg.Score)
 	return err
 }
+
+const matchUserExists = `-- name: MatchUserExists :one
+SELECT EXISTS (
+    SELECT 1 FROM match_users WHERE user_id = $1 AND match_id = $2
+)
+`
+
+type MatchUserExistsParams struct {
+	UserID  int32
+	MatchID int32
+}
+
+func (q *Queries) MatchUserExists(ctx context.Context, arg MatchUserExistsParams) (bool, error) {
+	row := q.db.QueryRowContext(ctx, matchUserExists, arg.UserID, arg.MatchID)
+	var exists bool
+	err := row.Scan(&exists)
+	return exists, err
+}
+
+const updateUserScoreOnMatch = `-- name: UpdateUserScoreOnMatch :exec
+UPDATE match_users
+SET score = $1
+WHERE user_id = $2 AND match_id = $3
+`
+
+type UpdateUserScoreOnMatchParams struct {
+	Score   int32
+	UserID  int32
+	MatchID int32
+}
+
+func (q *Queries) UpdateUserScoreOnMatch(ctx context.Context, arg UpdateUserScoreOnMatchParams) error {
+	_, err := q.db.ExecContext(ctx, updateUserScoreOnMatch, arg.Score, arg.UserID, arg.MatchID)
+	return err
+}

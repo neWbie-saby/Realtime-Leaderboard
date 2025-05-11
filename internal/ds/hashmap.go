@@ -18,3 +18,7 @@ func (hm *HashMap[K, V]) Get(key K) (V, bool) {
 func (hm *HashMap[K, V]) Delete(key K) {
 	delete(hm.data, key)
 }
+
+func (hm *HashMap[K, V]) Items() map[K]V {
+	return hm.data
+}

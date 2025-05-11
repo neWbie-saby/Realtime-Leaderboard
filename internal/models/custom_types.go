@@ -3,8 +3,8 @@ package models
 import "time"
 
 type UserScore struct {
-	UserID int
-	Score  int
+	UserID int `json:"user_id"`
+	Score  int `json:"score"`
 }
 
 type RegisterInput struct {
@@ -34,4 +34,16 @@ type UserNameOutput struct {
 	ID       int32  `json:"id"`
 	UserName string `json:"username"`
 	Email    string `json:"email"`
+}
+
+type CreateMatchInput struct {
+	MatchType string `json:"match_type"`
+}
+
+type CreateMatchOutput struct {
+	MatchID int32 `json:"match_id"`
+}
+
+type ScoresInput struct {
+	Scores []UserScore `json:"scores"`
 }
