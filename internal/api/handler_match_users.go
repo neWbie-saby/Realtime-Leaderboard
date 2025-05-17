@@ -2,7 +2,6 @@ package api
 
 import (
 	"fmt"
-	"log"
 	"strconv"
 
 	"github.com/gofiber/fiber/v2"
@@ -12,13 +11,14 @@ import (
 )
 
 func (apiCfg *ApiConfig) HandlerPushMatchScores(f *fiber.Ctx) error {
+	var input models.ScoresInput
+	var processingErrors []string
+
 	matchIDStr := f.Params("match_id")
 	matchID, err := strconv.ParseInt(matchIDStr, 10, 32)
 	if err != nil {
-		log.Fatalf("Error converting string to int32: %v", err)
+		return RespondWithError(f, fiber.StatusBadRequest, fmt.Sprintf("Error converting string to int32: %v", err)) // code - 400
 	}
-
-	var input models.ScoresInput
 
 	if err := f.BodyParser(&input); err != nil {
 		return RespondWithError(f, fiber.StatusBadRequest, fmt.Sprintf("Error parsing JSON: %v", err)) // code - 400
@@ -42,7 +42,8 @@ func (apiCfg *ApiConfig) HandlerPushMatchScores(f *fiber.Ctx) error {
 				MatchID: int32(matchID),
 			})
 			if err != nil {
-				return RespondWithError(f, fiber.StatusInternalServerError, fmt.Sprintf("Failed to check user %v of match %v: %v", userKey, scoreVal, err)) // code - 500
+				processingErrors = append(processingErrors, fmt.Sprintf("Failed to check user %v of match %v: %v", userKey, scoreVal, err))
+				continue
 			}
 
 			if present {
@@ -52,7 +53,8 @@ func (apiCfg *ApiConfig) HandlerPushMatchScores(f *fiber.Ctx) error {
 					Score:   int32(scoreVal),
 				})
 				if err != nil {
-					return RespondWithError(f, fiber.StatusConflict, fmt.Sprintf("Match User updation failed: %v", err)) // code - 409
+					processingErrors = append(processingErrors, fmt.Sprintf("Match User updation failed of user_id %v: %v", userKey, err))
+					continue
 				}
 			} else {
 				err := apiCfg.DB.AddUserToMatch(f.Context(), database.AddUserToMatchParams{
@@ -61,9 +63,21 @@ func (apiCfg *ApiConfig) HandlerPushMatchScores(f *fiber.Ctx) error {
 					Score:   int32(scoreVal),
 				})
 				if err != nil {
-					return RespondWithError(f, fiber.StatusConflict, fmt.Sprintf("Match User creation failed: %v", err)) // code - 409
+					processingErrors = append(processingErrors, fmt.Sprintf("Match User creation failed of user_id %v: %v", userKey, err))
+					continue
 				}
 			}
+		}
+
+		if len(processingErrors) > 0 {
+			if len(processingErrors) == filteredUserIDs.Len() {
+				return RespondWithJSON(f, fiber.StatusInternalServerError, fiber.Map{
+					"errors": processingErrors,
+				})
+			}
+			return RespondWithJSON(f, fiber.StatusMultiStatus, fiber.Map{
+				"errors": processingErrors,
+			})
 		}
 	}
 

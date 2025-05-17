@@ -22,3 +22,7 @@ func (hm *HashMap[K, V]) Delete(key K) {
 func (hm *HashMap[K, V]) Items() map[K]V {
 	return hm.data
 }
+
+func (hm *HashMap[K, V]) Len() int {
+	return len(hm.data)
+}
