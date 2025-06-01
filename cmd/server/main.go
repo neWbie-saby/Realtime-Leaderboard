@@ -61,6 +61,8 @@ func main() {
 	v1.Post("/matches", middlewares.AuthenticateToken, apiCfg.HandlerCreateMatch)
 	v1.Post("/matches/:match_id/scores", middlewares.AuthenticateToken, apiCfg.HandlerPushMatchScores)
 
+	v1.Post("/matches/:match_id/compute-winners", middlewares.AuthenticateToken, apiCfg.HandlerCalculateWinner)
+
 	log.Printf("Fiber Server starting on port %v", portString)
 	if err := router.Listen(":" + portString); err != nil {
 		log.Fatal(err)

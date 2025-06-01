@@ -1,7 +1,9 @@
 package api
 
 import (
+	"context"
 	"fmt"
+	"log"
 	"strconv"
 
 	"github.com/gofiber/fiber/v2"
@@ -80,6 +82,12 @@ func (apiCfg *ApiConfig) HandlerPushMatchScores(f *fiber.Ctx) error {
 			})
 		}
 	}
+
+	go func() {
+		if err := apiCfg.CalculateAndUpdateWinner(int(matchID), context.Background()); err != nil {
+			log.Printf("Error calculating and updating winner: %v", err)
+		}
+	}()
 
 	return RespondWithJSON(f, fiber.StatusOK, fiber.Map{ // code - 200
 		"success": true,

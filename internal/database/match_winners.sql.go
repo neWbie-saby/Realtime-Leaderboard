@@ -24,6 +24,15 @@ func (q *Queries) AddWinnerOfMatch(ctx context.Context, arg AddWinnerOfMatchPara
 	return err
 }
 
+const deleteMatchWinners = `-- name: DeleteMatchWinners :exec
+DELETE FROM match_winners WHERE match_id = $1
+`
+
+func (q *Queries) DeleteMatchWinners(ctx context.Context, matchID int32) error {
+	_, err := q.db.ExecContext(ctx, deleteMatchWinners, matchID)
+	return err
+}
+
 const getMatchWinners = `-- name: GetMatchWinners :many
 SELECT user_id FROM match_winners WHERE match_id = $1
 `

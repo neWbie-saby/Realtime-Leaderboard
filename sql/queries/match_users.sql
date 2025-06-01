@@ -11,3 +11,6 @@ SELECT EXISTS (
 UPDATE match_users
 SET score = $1
 WHERE user_id = $2 AND match_id = $3;
+
+-- name: GetMatchUserScores :many
+SELECT user_id, score FROM match_users WHERE match_id = $1;
