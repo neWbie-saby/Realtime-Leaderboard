@@ -6,12 +6,12 @@ import (
 	"github.com/neWbie-saby/leaderboard/internal/models"
 )
 
-func (pq PriorityQueue) Len() int           { return len(pq) }
-func (pq PriorityQueue) Less(i, j int) bool { return pq[i].Score > pq[j].Score }
-func (pq PriorityQueue) Swap(i, j int)      { pq[i], pq[j] = pq[j], pq[i] }
+func (pq *PriorityQueue) Len() int           { return len(*pq) }
+func (pq *PriorityQueue) Less(i, j int) bool { return (*pq)[i].Score > (*pq)[j].Score }
+func (pq *PriorityQueue) Swap(i, j int)      { (*pq)[i], (*pq)[j] = (*pq)[j], (*pq)[i] }
 
 func (pq *PriorityQueue) Push(x any) {
-	*pq = append(*pq, x.(*models.UserScore))
+	*pq = append(*pq, x.(*models.UserScoreAndUserNameOutput))
 }
 
 func (pq *PriorityQueue) Pop() any {

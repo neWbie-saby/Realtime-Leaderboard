@@ -47,3 +47,9 @@ type CreateMatchOutput struct {
 type ScoresInput struct {
 	Scores []UserScore `json:"scores"`
 }
+
+type UserScoreAndUserNameOutput struct {
+	UserID   int32
+	Username string
+	Score    int32
+}

@@ -14,3 +14,9 @@ WHERE user_id = $2 AND match_id = $3;
 
 -- name: GetMatchUserScores :many
 SELECT user_id, score FROM match_users WHERE match_id = $1;
+
+-- name: GetMatchUserScoresAndUserNames :many
+SELECT u.id, u.username, mu.score 
+FROM match_users mu 
+JOIN users u ON u.id = mu.user_id 
+WHERE mu.match_id = $1;

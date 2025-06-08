@@ -57,6 +57,42 @@ func (q *Queries) GetMatchUserScores(ctx context.Context, matchID int32) ([]GetM
 	return items, nil
 }
 
+const getMatchUserScoresAndUserNames = `-- name: GetMatchUserScoresAndUserNames :many
+SELECT u.id, u.username, mu.score 
+FROM match_users mu 
+JOIN users u ON u.id = mu.user_id 
+WHERE mu.match_id = $1
+`
+
+type GetMatchUserScoresAndUserNamesRow struct {
+	ID       int32
+	Username string
+	Score    int32
+}
+
+func (q *Queries) GetMatchUserScoresAndUserNames(ctx context.Context, matchID int32) ([]GetMatchUserScoresAndUserNamesRow, error) {
+	rows, err := q.db.QueryContext(ctx, getMatchUserScoresAndUserNames, matchID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []GetMatchUserScoresAndUserNamesRow
+	for rows.Next() {
+		var i GetMatchUserScoresAndUserNamesRow
+		if err := rows.Scan(&i.ID, &i.Username, &i.Score); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const matchUserExists = `-- name: MatchUserExists :one
 SELECT EXISTS (
     SELECT 1 FROM match_users WHERE user_id = $1 AND match_id = $2

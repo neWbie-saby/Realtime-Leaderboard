@@ -10,7 +10,7 @@ type Stack[T any] struct {
 	data []T
 }
 
-type PriorityQueue []*models.UserScore
+type PriorityQueue []*models.UserScoreAndUserNameOutput
 
 type Graph struct {
 	adj map[int][]int
