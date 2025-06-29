@@ -1,0 +1,17 @@
+syntax = "proto3";
+
+package analytics;
+
+option go_package = "github.com/neWbie-saby/leaderboard/proto;analytics";
+
+service AnalyticsService {
+    rpc TriggerMatchAnalysis (TriggerRequest) returns (TriggerResponse);
+}
+
+message TriggerRequest {
+    int32 match_id = 1;
+}
+
+message TriggerResponse {
+    string status = 1;
+}

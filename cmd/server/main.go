@@ -2,8 +2,16 @@ package main
 
 import (
 	"database/sql"
-	"log"
 	"os"
+
+	///Required for stub gRPC server
+
+	// "context"
+	"log"
+	// "net"
+
+	// pb "github.com/neWbie-saby/leaderboard/proto/analytics"
+	// "google.golang.org/grpc"
 
 	"github.com/gofiber/fiber/v2"
 	"github.com/joho/godotenv"
@@ -70,3 +78,27 @@ func main() {
 		log.Fatal(err)
 	}
 }
+
+// type stubAnalyticsServer struct {
+// 	pb.UnimplementedAnalyticsServiceServer
+// }
+
+// func (s *stubAnalyticsServer) TriggerMatchAnalysis(ctx context.Context, req *pb.TriggerRequest) (*pb.TriggerResponse, error) {
+// 	log.Printf("Stub received for TriggerMatchAnalysis for match_id %d", req.MatchId)
+// 	return &pb.TriggerResponse{}, nil
+// }
+
+// func main() {
+// 	lis, err := net.Listen("tcp", ":50051")
+// 	if err != nil {
+// 		log.Fatalf("Failed to listen: %v", err)
+// 	}
+
+// 	s := grpc.NewServer()
+// 	pb.RegisterAnalyticsServiceServer(s, &stubAnalyticsServer{})
+
+// 	log.Println("Stub gRPC listening on :50051")
+// 	if err := s.Serve(lis); err != nil {
+// 		log.Fatalf("Failed to serve: %v", err)
+// 	}
+// }
