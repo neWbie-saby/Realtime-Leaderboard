@@ -1,8 +1,12 @@
 package main
 
 import (
+	"context"
 	"database/sql"
 	"os"
+	"os/signal"
+	"sync"
+	"syscall"
 
 	///Required for stub gRPC server
 
@@ -13,12 +17,11 @@ import (
 	// pb "github.com/neWbie-saby/leaderboard/proto/analytics"
 	// "google.golang.org/grpc"
 
-	"github.com/gofiber/fiber/v2"
 	"github.com/joho/godotenv"
 	_ "github.com/lib/pq"
 	"github.com/neWbie-saby/leaderboard/internal/api"
 	"github.com/neWbie-saby/leaderboard/internal/database"
-	"github.com/neWbie-saby/leaderboard/internal/middlewares"
+	"github.com/neWbie-saby/leaderboard/internal/httpserver"
 )
 
 func main() {
@@ -42,41 +45,46 @@ func main() {
 		log.Fatal("Can't connect to database")
 	}
 
+	defer func() {
+		log.Println("Closing database conection...")
+		if err := conn.Close(); err != nil {
+			log.Printf("Error closing database connection: %v", err)
+		} else {
+			log.Println("Database connection closed.")
+		}
+	}()
+
 	db := database.New(conn)
 
-	router := fiber.New(fiber.Config{
-		ErrorHandler: middlewares.ErrorHandler,
-	})
-
-	router.Use(middlewares.CORS())
-	// router.Use(middlewares.RateLimiter())
-	router.Use(middlewares.Logger)
+	ctx, cancel := context.WithCancel(context.Background())
+	var appWg sync.WaitGroup
 
 	apiCfg := api.ApiConfig{
 		DB: db,
 	}
 
-	v1 := router.Group("/v1")
+	httpServer := httpserver.New(apiCfg, portString)
 
-	v1.Get("/healthz", api.HandlerReadiness)
-	v1.Get("/err", api.HandlerErr)
+	appWg.Add(1)
+	go httpServer.Run(ctx, &appWg)
 
-	v1.Post("/register", apiCfg.HandlerRegister)
-	v1.Post("/login", apiCfg.HandlerLogin)
+	// ==== Next Lone Go-routines to be added here ====
 
-	v1.Get("/users/:username", middlewares.AuthenticateToken, apiCfg.HandlerGetUserByUsername)
+	// === Main GoRoutine Channel ===
+	// Channel to listen for OS signals (e.g., Ctrl+C, `kill` command)
+	sigChan := make(chan os.Signal, 1)
+	signal.Notify(sigChan, syscall.SIGINT, syscall.SIGTERM)
 
-	v1.Post("/matches", middlewares.AuthenticateToken, apiCfg.HandlerCreateMatch)
-	v1.Post("/matches/:match_id/scores", middlewares.AuthenticateToken, apiCfg.HandlerPushMatchScores)
+	// Block main GoRoutine until a signal is received
+	sig := <-sigChan
+	log.Printf("Received OS signal: %s. Initiating graceful shutdown...", sig)
 
-	v1.Post("/matches/:match_id/compute-winners", middlewares.AuthenticateToken, apiCfg.HandlerCalculateWinner)
+	cancel()
 
-	v1.Get("/matches/:match_id/leaderboard/scores", middlewares.AuthenticateToken, apiCfg.HandlerGetMatchLeaderboard)
+	log.Println("Waiting for all background services and HTTP server to shut down...")
+	appWg.Wait()
 
-	log.Printf("Fiber Server starting on port %v", portString)
-	if err := router.Listen(":" + portString); err != nil {
-		log.Fatal(err)
-	}
+	log.Println("Application shutdown complete.")
 }
 
 // type stubAnalyticsServer struct {
