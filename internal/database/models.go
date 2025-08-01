@@ -6,6 +6,7 @@ package database
 
 import (
 	"database/sql"
+	"time"
 )
 
 type Match struct {
@@ -14,6 +15,14 @@ type Match struct {
 	MatchDate sql.NullTime
 	CreatedAt sql.NullTime
 	UpdatedAt sql.NullTime
+}
+
+type MatchInsight struct {
+	MatchID           int32
+	HighestScore      int32
+	AverageScore      float64
+	TotalParticipants int32
+	ProcessedAt       sql.NullTime
 }
 
 type MatchUser struct {
@@ -25,6 +34,16 @@ type MatchUser struct {
 type MatchWinner struct {
 	MatchID int32
 	UserID  int32
+}
+
+type ProcessingLock struct {
+	ID           int64
+	ResourceType string
+	ResourceID   string
+	LockedBy     string
+	LockedAt     sql.NullTime
+	ExpiresAt    time.Time
+	ReleasedAt   sql.NullTime
 }
 
 type User struct {

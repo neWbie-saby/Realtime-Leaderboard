@@ -42,3 +42,38 @@ func (q *Queries) GetMatchById(ctx context.Context, id int32) (Match, error) {
 	)
 	return i, err
 }
+
+const getMatchIdsForAnalysis = `-- name: GetMatchIdsForAnalysis :many
+SELECT 
+    m.id 
+FROM 
+    matches m
+LEFT JOIN 
+    match_insights mi ON m.id = mi.match_id
+WHERE 
+    mi.match_id IS NULL OR mi.processed_at < NOW() - INTERVAL '2 minute'
+LIMIT $1
+`
+
+func (q *Queries) GetMatchIdsForAnalysis(ctx context.Context, limit int32) ([]int32, error) {
+	rows, err := q.db.QueryContext(ctx, getMatchIdsForAnalysis, limit)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []int32
+	for rows.Next() {
+		var id int32
+		if err := rows.Scan(&id); err != nil {
+			return nil, err
+		}
+		items = append(items, id)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}

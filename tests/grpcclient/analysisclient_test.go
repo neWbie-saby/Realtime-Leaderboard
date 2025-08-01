@@ -1,7 +1,9 @@
 package grpcclient_test
 
 import (
+	"context"
 	"testing"
+	"time"
 
 	client "github.com/neWbie-saby/leaderboard/internal/grpcclient/analyticsclient"
 )
@@ -9,7 +11,10 @@ import (
 func TestTriggerAnalysis(t *testing.T) {
 	addr := "127.0.0.1:9090"
 
-	c, err := client.NewAnalyticsClient(addr)
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+
+	c, err := client.NewAnalyticsClient(ctx, addr)
 	if err != nil {
 		t.Fatalf("failed to create analystics client %v", err)
 	}

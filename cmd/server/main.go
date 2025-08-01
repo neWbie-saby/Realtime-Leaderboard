@@ -7,6 +7,7 @@ import (
 	"os/signal"
 	"sync"
 	"syscall"
+	"time"
 
 	///Required for stub gRPC server
 
@@ -17,11 +18,13 @@ import (
 	// pb "github.com/neWbie-saby/leaderboard/proto/analytics"
 	// "google.golang.org/grpc"
 
+	"github.com/google/uuid"
 	"github.com/joho/godotenv"
 	_ "github.com/lib/pq"
 	"github.com/neWbie-saby/leaderboard/internal/api"
 	"github.com/neWbie-saby/leaderboard/internal/database"
 	"github.com/neWbie-saby/leaderboard/internal/httpserver"
+	"github.com/neWbie-saby/leaderboard/internal/scheduler"
 )
 
 func main() {
@@ -31,6 +34,12 @@ func main() {
 
 	if portString == "" {
 		log.Fatal("PORT not found in the environment")
+	}
+
+	grpcServerPortString := os.Getenv("GRPC_SERVER_PORT")
+
+	if grpcServerPortString == "" {
+		log.Fatal("GRPC_SERVER_PORT not found in the environment")
 	}
 
 	dbString := os.Getenv("DB_URL")
@@ -69,11 +78,19 @@ func main() {
 	go httpServer.Run(ctx, &appWg)
 
 	// ==== Next Lone Go-routines to be added here ====
+	matchAnalyzer, err := scheduler.NewMatchAnalysisProcessor(ctx, db, 10, time.Minute, grpcServerPortString, uuid.New().String())
+	if err != nil {
+		log.Printf("Failed to create Match Analyzer: %v", err)
+	} else {
+		appWg.Add(1)
+		go matchAnalyzer.Start(&appWg)
+	}
 
-	// === Main GoRoutine Channel ===
-	// Channel to listen for OS signals (e.g., Ctrl+C, `kill` command)
+	// === Blocking main GoRoutine Channel ===
+	// Channel to listen for OS signals (Ctrl+C, `kill` command)
 	sigChan := make(chan os.Signal, 1)
 	signal.Notify(sigChan, syscall.SIGINT, syscall.SIGTERM)
+	// Alternatively, signal.NotifyContext may also be used
 
 	// Block main GoRoutine until a signal is received
 	sig := <-sigChan
