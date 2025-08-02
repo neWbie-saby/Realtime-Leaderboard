@@ -23,7 +23,7 @@ type MatchAnalysisProcessor struct {
 }
 
 func NewMatchAnalysisProcessor(
-	ctx context.Context,
+	parentCtx context.Context,
 	db *database.Queries,
 	concurrency int,
 	interval time.Duration,
@@ -50,10 +50,10 @@ func NewMatchAnalysisProcessor(
 			connectTimeOut,
 		)
 
-		grpcCtx, grpcCtxCancel := context.WithTimeout(ctx, 15*time.Second)
+		grpcCtx, grpcCtxCancel := context.WithTimeout(parentCtx, 15*time.Second)
 
 		analyticsClient, connectErr = analyticsclient.NewAnalyticsClient(grpcCtx, grpcServerAddr)
-		defer grpcCtxCancel()
+		grpcCtxCancel()
 
 		if connectErr == nil {
 			log.Println("MatchAnalysisProcessor: Successfully established gRPC connection.")
@@ -62,17 +62,11 @@ func NewMatchAnalysisProcessor(
 
 		log.Printf("Failed to establish initial gRPC connection to analytics service at %s: %v", grpcServerAddr, connectErr)
 
-		select {
-		case <-ctx.Done():
-			return nil, fmt.Errorf("MatchAnalysisProcessor: Aborting gRPC connection retries due to context cancellation (%v): %w", ctx.Err(), connectErr)
-		default:
-		}
-
 		if attempt == maxRetries {
 			return nil, fmt.Errorf("MatchAnalysisProcessor: Exceeded maximum retries for gRPC connection attempts (%d) to %s: %w", maxRetries, grpcServerAddr, connectErr)
 		}
 
-		retryGapDuration := initialRetryGap * time.Duration(1<<(attempt-1))
+		retryGapDuration := initialRetryGap * time.Duration(1<<(attempt-1)) // 2 to the power (attempt - 1)
 		if retryGapDuration > maxRetryGap {
 			retryGapDuration = maxRetryGap
 		}
@@ -80,14 +74,14 @@ func NewMatchAnalysisProcessor(
 
 		select {
 		case <-time.After(retryGapDuration):
-
-		case <-ctx.Done():
-			return nil, fmt.Errorf("MatchAnalysisProcessor: Aborting gRPC connection retries during backoff due to context cancellation (%v): %w", ctx.Err(), connectErr)
+			// continue
+		case <-parentCtx.Done():
+			return nil, fmt.Errorf("MatchAnalysisProcessor: Aborting gRPC connection retries during backoff due to context cancellation (%v): %w", parentCtx.Err(), connectErr)
 		}
 	}
 
 	return &MatchAnalysisProcessor{
-		ctx:            ctx,
+		ctx:            parentCtx,
 		db:             db,
 		analysisClient: analyticsClient,
 		concurrency:    int32(concurrency),

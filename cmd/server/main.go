@@ -72,26 +72,28 @@ func main() {
 		DB: db,
 	}
 
+	// Channel to listen for OS signals (Ctrl+C, `kill` command)
+	sigChan := make(chan os.Signal, 1)
+	signal.Notify(sigChan, syscall.SIGINT, syscall.SIGTERM)
+	// Alternatively, signal.NotifyContext may also be used
+
 	httpServer := httpserver.New(apiCfg, portString)
 
 	appWg.Add(1)
 	go httpServer.Run(ctx, &appWg)
 
 	// ==== Next Lone Go-routines to be added here ====
-	matchAnalyzer, err := scheduler.NewMatchAnalysisProcessor(ctx, db, 10, time.Minute, grpcServerPortString, uuid.New().String())
-	if err != nil {
-		log.Printf("Failed to create Match Analyzer: %v", err)
-	} else {
-		appWg.Add(1)
-		go matchAnalyzer.Start(&appWg)
-	}
+	go func() {
+		matchAnalyzer, err := scheduler.NewMatchAnalysisProcessor(ctx, db, 10, time.Minute, grpcServerPortString, uuid.New().String())
+		if err != nil {
+			log.Printf("Failed to create Match Analyzer: %v", err)
+		} else {
+			appWg.Add(1)
+			go matchAnalyzer.Start(&appWg)
+		}
+	}()
 
 	// === Blocking main GoRoutine Channel ===
-	// Channel to listen for OS signals (Ctrl+C, `kill` command)
-	sigChan := make(chan os.Signal, 1)
-	signal.Notify(sigChan, syscall.SIGINT, syscall.SIGTERM)
-	// Alternatively, signal.NotifyContext may also be used
-
 	// Block main GoRoutine until a signal is received
 	sig := <-sigChan
 	log.Printf("Received OS signal: %s. Initiating graceful shutdown...", sig)
