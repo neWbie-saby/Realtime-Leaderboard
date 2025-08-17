@@ -114,7 +114,7 @@ func (p *MatchAnalysisProcessor) Start(wg *sync.WaitGroup) {
 	for {
 		select {
 		case <-p.ctx.Done():
-			log.Println("Match Analysis processor received shutdown signal. Exiting.")
+			log.Println("MatchAnalysisProcessor: Received shutdown signal. Exiting.")
 			return
 
 		case <-ticker.C:

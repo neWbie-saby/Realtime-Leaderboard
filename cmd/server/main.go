@@ -9,14 +9,7 @@ import (
 	"syscall"
 	"time"
 
-	///Required for stub gRPC server
-
-	// "context"
 	"log"
-	// "net"
-
-	// pb "github.com/neWbie-saby/leaderboard/proto/analytics"
-	// "google.golang.org/grpc"
 
 	"github.com/google/uuid"
 	"github.com/joho/godotenv"
@@ -93,6 +86,10 @@ func main() {
 		}
 	}()
 
+	// Go-routine to clear un-released and expired processing_locks
+	appWg.Add(1)
+	go scheduler.RunExpiryProcessor(ctx, &appWg, db, 2*time.Minute)
+
 	// === Blocking main GoRoutine Channel ===
 	// Block main GoRoutine until a signal is received
 	sig := <-sigChan
@@ -105,27 +102,3 @@ func main() {
 
 	log.Println("Application shutdown complete.")
 }
-
-// type stubAnalyticsServer struct {
-// 	pb.UnimplementedAnalyticsServiceServer
-// }
-
-// func (s *stubAnalyticsServer) TriggerMatchAnalysis(ctx context.Context, req *pb.TriggerRequest) (*pb.TriggerResponse, error) {
-// 	log.Printf("Stub received for TriggerMatchAnalysis for match_id %d", req.MatchId)
-// 	return &pb.TriggerResponse{}, nil
-// }
-
-// func main() {
-// 	lis, err := net.Listen("tcp", ":50051")
-// 	if err != nil {
-// 		log.Fatalf("Failed to listen: %v", err)
-// 	}
-
-// 	s := grpc.NewServer()
-// 	pb.RegisterAnalyticsServiceServer(s, &stubAnalyticsServer{})
-
-// 	log.Println("Stub gRPC listening on :50051")
-// 	if err := s.Serve(lis); err != nil {
-// 		log.Fatalf("Failed to serve: %v", err)
-// 	}
-// }
