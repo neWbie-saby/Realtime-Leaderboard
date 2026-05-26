@@ -10,9 +10,10 @@ func RegisterRoutes(v1 fiber.Router, apiCfg ApiConfig) {
 	v1.Post("/register", apiCfg.HandlerRegister)
 	v1.Post("/login", apiCfg.HandlerLogin)
 
-	v1.Get("/users/:username", apiCfg.AuthenticateToken, apiCfg.HandlerGetUserByUsername)
+	v1.Get("/users/matches", apiCfg.AuthenticateToken, apiCfg.HandlerGetPlayerMatches)
+	v1.Get("/users/matches/:match_id", apiCfg.AuthenticateToken, apiCfg.HandlerGetPlayerMatchScore)
 
-	v1.Post("/matches", apiCfg.AuthenticateToken, apiCfg.HandlerCreateMatch)
+	v1.Post("/matches/create", apiCfg.AuthenticateToken, apiCfg.HandlerCreateMatch)
 	v1.Post("/matches/:match_id/scores", apiCfg.AuthenticateToken, apiCfg.HandlerPushMatchScores)
 
 	v1.Post("/matches/:match_id/compute-winners", apiCfg.AuthenticateToken, apiCfg.HandlerCalculateWinner)

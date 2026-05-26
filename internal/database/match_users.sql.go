@@ -9,20 +9,34 @@ import (
 	"context"
 )
 
-const addUserToMatch = `-- name: AddUserToMatch :exec
+const addUserToMatch = `-- name: AddUserToMatch :execrows
 INSERT INTO match_users (match_id, user_id, score)
-VALUES ($1, $2, $3)
+SELECT 
+    $1, $2, $3
+FROM users
+WHERE 
+    users.id = $4
+AND users.role IN ('scorer', 'official')
 `
 
 type AddUserToMatchParams struct {
 	MatchID int32
 	UserID  int32
 	Score   int32
+	ID      int32
 }
 
-func (q *Queries) AddUserToMatch(ctx context.Context, arg AddUserToMatchParams) error {
-	_, err := q.db.ExecContext(ctx, addUserToMatch, arg.MatchID, arg.UserID, arg.Score)
-	return err
+func (q *Queries) AddUserToMatch(ctx context.Context, arg AddUserToMatchParams) (int64, error) {
+	result, err := q.db.ExecContext(ctx, addUserToMatch,
+		arg.MatchID,
+		arg.UserID,
+		arg.Score,
+		arg.ID,
+	)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected()
 }
 
 const getMatchUserScores = `-- name: GetMatchUserScores :many
@@ -62,7 +76,23 @@ SELECT u.id, u.username, mu.score
 FROM match_users mu 
 JOIN users u ON u.id = mu.user_id 
 WHERE mu.match_id = $1
+AND EXISTS(
+    SELECT 1
+    FROM users req_u
+    LEFT JOIN match_users req_mu ON req_u.id = req_mu.user_id AND req_mu.match_id = $1
+    WHERE req_u.id = $2
+    AND (
+        (req_mu.user_id IS NOT NULL AND req_u.role = 'player')
+        OR
+        (req_mu.user_id IS NULL AND req_u.role IN ('scorer', 'official'))
+    )
+)
 `
+
+type GetMatchUserScoresAndUserNamesParams struct {
+	MatchID int32
+	ID      int32
+}
 
 type GetMatchUserScoresAndUserNamesRow struct {
 	ID       int32
@@ -70,8 +100,8 @@ type GetMatchUserScoresAndUserNamesRow struct {
 	Score    int32
 }
 
-func (q *Queries) GetMatchUserScoresAndUserNames(ctx context.Context, matchID int32) ([]GetMatchUserScoresAndUserNamesRow, error) {
-	rows, err := q.db.QueryContext(ctx, getMatchUserScoresAndUserNames, matchID)
+func (q *Queries) GetMatchUserScoresAndUserNames(ctx context.Context, arg GetMatchUserScoresAndUserNamesParams) ([]GetMatchUserScoresAndUserNamesRow, error) {
+	rows, err := q.db.QueryContext(ctx, getMatchUserScoresAndUserNames, arg.MatchID, arg.ID)
 	if err != nil {
 		return nil, err
 	}
@@ -111,19 +141,34 @@ func (q *Queries) MatchUserExists(ctx context.Context, arg MatchUserExistsParams
 	return exists, err
 }
 
-const updateUserScoreOnMatch = `-- name: UpdateUserScoreOnMatch :exec
+const updateUserScoreOnMatch = `-- name: UpdateUserScoreOnMatch :execrows
 UPDATE match_users
 SET score = $1
 WHERE user_id = $2 AND match_id = $3
+AND EXISTS (
+    SELECT 1
+    FROM users
+    WHERE users.id = $4
+    AND users.role IN ('scorer', 'official')
+)
 `
 
 type UpdateUserScoreOnMatchParams struct {
 	Score   int32
 	UserID  int32
 	MatchID int32
+	ID      int32
 }
 
-func (q *Queries) UpdateUserScoreOnMatch(ctx context.Context, arg UpdateUserScoreOnMatchParams) error {
-	_, err := q.db.ExecContext(ctx, updateUserScoreOnMatch, arg.Score, arg.UserID, arg.MatchID)
-	return err
+func (q *Queries) UpdateUserScoreOnMatch(ctx context.Context, arg UpdateUserScoreOnMatchParams) (int64, error) {
+	result, err := q.db.ExecContext(ctx, updateUserScoreOnMatch,
+		arg.Score,
+		arg.UserID,
+		arg.MatchID,
+		arg.ID,
+	)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected()
 }

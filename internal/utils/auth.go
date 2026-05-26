@@ -2,6 +2,7 @@ package utils
 
 import (
 	"errors"
+	"fmt"
 	"os"
 	"time"
 
@@ -31,6 +32,12 @@ func GenerateJWT(userID int) (string, error) {
 
 func ParseJWT(tokenStr string) (int, error) {
 	token, err := jwt.Parse(tokenStr, func(token *jwt.Token) (interface{}, error) {
+		if _, ok := token.Method.(*jwt.SigningMethodHMAC); !ok {
+			return nil, fmt.Errorf("unexpected signing method family: %v", token.Header["alg"])
+		}
+		if token.Method.Alg() != "HS256" {
+			return nil, fmt.Errorf("unexpected signing algorithm: %v", token.Header["alg"])
+		}
 		return jwtKey, nil
 	})
 

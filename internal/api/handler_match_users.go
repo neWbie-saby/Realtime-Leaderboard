@@ -16,6 +16,11 @@ func (apiCfg *ApiConfig) HandlerPushMatchScores(f *fiber.Ctx) error {
 	var input models.ScoresInput
 	var processingErrors []string
 
+	userId, ok := f.Locals("user_id").(int)
+	if !ok {
+		return RespondWithError(f, fiber.StatusInternalServerError, fmt.Sprint("User ID missing from context or invalid type"))
+	}
+
 	matchIDStr := f.Params("match_id")
 	matchID, err := strconv.ParseInt(matchIDStr, 10, 32)
 	if err != nil {
@@ -49,24 +54,33 @@ func (apiCfg *ApiConfig) HandlerPushMatchScores(f *fiber.Ctx) error {
 			}
 
 			if present {
-				err := apiCfg.DB.UpdateUserScoreOnMatch(f.Context(), database.UpdateUserScoreOnMatchParams{
+				rowsAffected, err := apiCfg.DB.UpdateUserScoreOnMatch(f.Context(), database.UpdateUserScoreOnMatchParams{
 					MatchID: int32(matchID),
 					UserID:  int32(userKey),
 					Score:   int32(scoreVal),
+					ID:      int32(userId),
 				})
 				if err != nil {
 					processingErrors = append(processingErrors, fmt.Sprintf("Match User updation failed of user_id %v: %v", userKey, err))
 					continue
 				}
+				if rowsAffected == 0 {
+					processingErrors = append(processingErrors, fmt.Sprint("Match User updator must be 'scorer' or 'official'"))
+					continue
+				}
 			} else {
-				err := apiCfg.DB.AddUserToMatch(f.Context(), database.AddUserToMatchParams{
+				rowsCreated, err := apiCfg.DB.AddUserToMatch(f.Context(), database.AddUserToMatchParams{
 					MatchID: int32(matchID),
 					UserID:  int32(userKey),
 					Score:   int32(scoreVal),
+					ID:      int32(userId),
 				})
 				if err != nil {
 					processingErrors = append(processingErrors, fmt.Sprintf("Match User creation failed of user_id %v: %v", userKey, err))
 					continue
+				}
+				if rowsCreated == 0 {
+					processingErrors = append(processingErrors, fmt.Sprint("Match User creator must be 'scorer' or 'official'"))
 				}
 			}
 		}
@@ -83,11 +97,13 @@ func (apiCfg *ApiConfig) HandlerPushMatchScores(f *fiber.Ctx) error {
 		}
 	}
 
-	go func() {
-		if err := apiCfg.CalculateAndUpdateWinner(int(matchID), context.Background()); err != nil {
+	ctx := context.WithValue(context.Background(), "user_id", userId)
+
+	go func(ctx context.Context) {
+		if err := apiCfg.CalculateAndUpdateWinner(int(matchID), ctx); err != nil {
 			log.Printf("Error calculating and updating winner: %v", err)
 		}
-	}()
+	}(ctx)
 
 	return RespondWithJSON(f, fiber.StatusOK, fiber.Map{ // code - 200
 		"success": true,

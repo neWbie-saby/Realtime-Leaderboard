@@ -7,14 +7,27 @@ package database
 
 import (
 	"context"
+	"database/sql"
 )
 
 const createMatch = `-- name: CreateMatch :one
-INSERT INTO matches (match_type) VALUES ($1) RETURNING id, match_type, match_date, created_at, updated_at
+INSERT INTO matches (match_type)
+SELECT $2
+FROM
+    users
+WHERE
+    users.id = $1 AND users.role = 'official'
+LIMIT 1
+RETURNING matches.id, matches.match_type, matches.match_date, matches.created_at, matches.updated_at
 `
 
-func (q *Queries) CreateMatch(ctx context.Context, matchType string) (Match, error) {
-	row := q.db.QueryRowContext(ctx, createMatch, matchType)
+type CreateMatchParams struct {
+	ID        int32
+	MatchType string
+}
+
+func (q *Queries) CreateMatch(ctx context.Context, arg CreateMatchParams) (Match, error) {
+	row := q.db.QueryRowContext(ctx, createMatch, arg.ID, arg.MatchType)
 	var i Match
 	err := row.Scan(
 		&i.ID,
@@ -68,6 +81,89 @@ func (q *Queries) GetMatchIdsForAnalysis(ctx context.Context, limit int32) ([]in
 			return nil, err
 		}
 		items = append(items, id)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const getUserPlayerMatchScore = `-- name: GetUserPlayerMatchScore :one
+SELECT
+    m.id, m.match_type, m.match_date, mu.score
+FROM matches m
+JOIN
+    match_users mu ON mu.match_id = m.id
+JOIN
+    users u ON u.id = mu.user_id
+WHERE
+    u.role = 'player'
+AND
+    u.id = $1
+AND
+    m.id = $2
+`
+
+type GetUserPlayerMatchScoreParams struct {
+	ID   int32
+	ID_2 int32
+}
+
+type GetUserPlayerMatchScoreRow struct {
+	ID        int32
+	MatchType string
+	MatchDate sql.NullTime
+	Score     int32
+}
+
+func (q *Queries) GetUserPlayerMatchScore(ctx context.Context, arg GetUserPlayerMatchScoreParams) (GetUserPlayerMatchScoreRow, error) {
+	row := q.db.QueryRowContext(ctx, getUserPlayerMatchScore, arg.ID, arg.ID_2)
+	var i GetUserPlayerMatchScoreRow
+	err := row.Scan(
+		&i.ID,
+		&i.MatchType,
+		&i.MatchDate,
+		&i.Score,
+	)
+	return i, err
+}
+
+const getUserPlayerMatches = `-- name: GetUserPlayerMatches :many
+SELECT
+    m.id, m.match_type, m.match_date
+FROM matches m
+JOIN
+    match_users mu ON mu.match_id = m.id
+JOIN
+    users u ON u.id = mu.user_id
+WHERE
+    u.role = 'player'
+AND
+    mu.user_id = $1
+`
+
+type GetUserPlayerMatchesRow struct {
+	ID        int32
+	MatchType string
+	MatchDate sql.NullTime
+}
+
+func (q *Queries) GetUserPlayerMatches(ctx context.Context, userID int32) ([]GetUserPlayerMatchesRow, error) {
+	rows, err := q.db.QueryContext(ctx, getUserPlayerMatches, userID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []GetUserPlayerMatchesRow
+	for rows.Next() {
+		var i GetUserPlayerMatchesRow
+		if err := rows.Scan(&i.ID, &i.MatchType, &i.MatchDate); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
 	}
 	if err := rows.Close(); err != nil {
 		return nil, err

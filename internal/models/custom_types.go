@@ -53,3 +53,16 @@ type UserScoreAndUserNameOutput struct {
 	Username string
 	Score    int32
 }
+
+type PlayerMatch struct {
+	MatchID   int32     `json:"match_id"`
+	MatchType string    `json:"match_type"`
+	MatchDate time.Time `json:"match_date"`
+}
+
+type PlayerMatchScore struct {
+	MatchID    int32     `json:"match_id"`
+	MatchType  string    `json:"match_type"`
+	MatchDate  time.Time `json:"match_date"`
+	MatchScore int       `json:"match_score"`
+}

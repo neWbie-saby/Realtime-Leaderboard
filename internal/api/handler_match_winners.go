@@ -14,7 +14,12 @@ import (
 )
 
 func (apiCfg *ApiConfig) CalculateAndUpdateWinner(matchID int, ctx context.Context) error {
-	log.Printf("Calculating winner for match %v", matchID)
+	userId, ok := ctx.Value("user_id").(int)
+	if !ok {
+		return fmt.Errorf("User ID missing from context or invalid type")
+	} else {
+		log.Printf("Calculating winner for match %v", matchID)
+	}
 
 	var processingErrors []string
 
@@ -27,18 +32,29 @@ func (apiCfg *ApiConfig) CalculateAndUpdateWinner(matchID int, ctx context.Conte
 
 	if len(winnerScores) > 0 {
 
-		err := apiCfg.DB.DeleteMatchWinners(ctx, int32(matchID))
+		rowsDeleted, err := apiCfg.DB.DeleteMatchWinners(ctx, database.DeleteMatchWinnersParams{
+			MatchID: int32(matchID),
+			ID:      int32(userId),
+		})
 		if err != nil {
 			return fmt.Errorf("error deleting scores for match %v: %w", matchID, err)
 		}
+		if rowsDeleted == 0 {
+			return fmt.Errorf("error deleting scores for match %v since deletion not raised by 'scorer' or 'official'", matchID)
+		}
 
 		for _, winnerScore := range winnerScores {
-			err := apiCfg.DB.AddWinnerOfMatch(ctx, database.AddWinnerOfMatchParams{
+			rowsCreated, err := apiCfg.DB.AddWinnerOfMatch(ctx, database.AddWinnerOfMatchParams{
 				MatchID: int32(matchID),
 				UserID:  int32(winnerScore.UserID),
+				ID:      int32(userId),
 			})
 			if err != nil {
 				processingErrors = append(processingErrors, fmt.Sprintf("Match Winner creation failed of user_id %v: %v", winnerScore.UserID, err))
+				continue
+			}
+			if rowsCreated == 0 {
+				processingErrors = append(processingErrors, fmt.Sprintf("Match Winner creation failed of user_id %v since creator is not 'scorer' or 'offcial'", winnerScore.UserID))
 				continue
 			}
 		}

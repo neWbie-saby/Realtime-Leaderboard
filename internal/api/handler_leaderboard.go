@@ -6,6 +6,7 @@ import (
 	"strconv"
 
 	"github.com/gofiber/fiber/v2"
+	"github.com/neWbie-saby/leaderboard/internal/database"
 	"github.com/neWbie-saby/leaderboard/internal/ds"
 	"github.com/neWbie-saby/leaderboard/internal/models"
 )
@@ -16,14 +17,25 @@ func (apiCfg *ApiConfig) HandlerGetMatchLeaderboard(f *fiber.Ctx) error {
 		return RespondWithError(f, fiber.StatusBadRequest, fmt.Sprintf("Error converting string to int32: %v", err)) // code - 400
 	}
 
+	userId, ok := f.Locals("user_id").(int)
+	if !ok {
+		return RespondWithError(f, fiber.StatusInternalServerError, fmt.Sprint("User ID missing from context or invalid type"))
+	}
+
 	limit, err := strconv.Atoi(f.Query("limit", "10"))
 	if err != nil || limit <= 0 {
 		limit = 10
 	}
 
-	scores, err := apiCfg.DB.GetMatchUserScoresAndUserNames(f.Context(), int32(matchID))
+	scores, err := apiCfg.DB.GetMatchUserScoresAndUserNames(f.Context(), database.GetMatchUserScoresAndUserNamesParams{
+		MatchID: int32(matchID),
+		ID:      int32(userId),
+	})
 	if err != nil {
 		return RespondWithError(f, fiber.StatusInternalServerError, fmt.Sprintf("Failed to get scores of match %v: %v", matchID, err)) // code - 500
+	}
+	if len(scores) == 0 {
+		return RespondWithError(f, fiber.StatusNotFound, fmt.Sprintf("Failed to get scores of match %v since current player user does not belong to this match, or user is not 'scorer' or 'player'", matchID)) // code - 404
 	}
 
 	pq := ds.NewPriorityQueue()

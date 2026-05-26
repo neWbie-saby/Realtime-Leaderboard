@@ -6,8 +6,53 @@ package database
 
 import (
 	"database/sql"
+	"database/sql/driver"
+	"fmt"
 	"time"
 )
+
+type MatchRole string
+
+const (
+	MatchRolePlayer   MatchRole = "player"
+	MatchRoleScorer   MatchRole = "scorer"
+	MatchRoleOfficial MatchRole = "official"
+)
+
+func (e *MatchRole) Scan(src interface{}) error {
+	switch s := src.(type) {
+	case []byte:
+		*e = MatchRole(s)
+	case string:
+		*e = MatchRole(s)
+	default:
+		return fmt.Errorf("unsupported scan type for MatchRole: %T", src)
+	}
+	return nil
+}
+
+type NullMatchRole struct {
+	MatchRole MatchRole
+	Valid     bool // Valid is true if MatchRole is not NULL
+}
+
+// Scan implements the Scanner interface.
+func (ns *NullMatchRole) Scan(value interface{}) error {
+	if value == nil {
+		ns.MatchRole, ns.Valid = "", false
+		return nil
+	}
+	ns.Valid = true
+	return ns.MatchRole.Scan(value)
+}
+
+// Value implements the driver Valuer interface.
+func (ns NullMatchRole) Value() (driver.Value, error) {
+	if !ns.Valid {
+		return nil, nil
+	}
+	return string(ns.MatchRole), nil
+}
 
 type Match struct {
 	ID        int32
@@ -53,4 +98,5 @@ type User struct {
 	PasswordHash string
 	CreatedAt    sql.NullTime
 	UpdatedAt    sql.NullTime
+	Role         MatchRole
 }

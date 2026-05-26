@@ -9,28 +9,52 @@ import (
 	"context"
 )
 
-const addWinnerOfMatch = `-- name: AddWinnerOfMatch :exec
+const addWinnerOfMatch = `-- name: AddWinnerOfMatch :execrows
 INSERT INTO match_winners (match_id, user_id)
-VALUES ($1, $2)
+SELECT 
+    $1, $2
+FROM users
+WHERE
+    users.id = $3
+AND users.role IN ('scorer', 'official')
 `
 
 type AddWinnerOfMatchParams struct {
 	MatchID int32
 	UserID  int32
+	ID      int32
 }
 
-func (q *Queries) AddWinnerOfMatch(ctx context.Context, arg AddWinnerOfMatchParams) error {
-	_, err := q.db.ExecContext(ctx, addWinnerOfMatch, arg.MatchID, arg.UserID)
-	return err
+func (q *Queries) AddWinnerOfMatch(ctx context.Context, arg AddWinnerOfMatchParams) (int64, error) {
+	result, err := q.db.ExecContext(ctx, addWinnerOfMatch, arg.MatchID, arg.UserID, arg.ID)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected()
 }
 
-const deleteMatchWinners = `-- name: DeleteMatchWinners :exec
-DELETE FROM match_winners WHERE match_id = $1
+const deleteMatchWinners = `-- name: DeleteMatchWinners :execrows
+DELETE FROM match_winners 
+WHERE match_id = $1
+AND EXISTS (
+    SELECT 1
+    FROM users
+    WHERE users.id = $2
+    AND users.role IN ('scorer', 'official')
+)
 `
 
-func (q *Queries) DeleteMatchWinners(ctx context.Context, matchID int32) error {
-	_, err := q.db.ExecContext(ctx, deleteMatchWinners, matchID)
-	return err
+type DeleteMatchWinnersParams struct {
+	MatchID int32
+	ID      int32
+}
+
+func (q *Queries) DeleteMatchWinners(ctx context.Context, arg DeleteMatchWinnersParams) (int64, error) {
+	result, err := q.db.ExecContext(ctx, deleteMatchWinners, arg.MatchID, arg.ID)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected()
 }
 
 const getMatchWinners = `-- name: GetMatchWinners :many
